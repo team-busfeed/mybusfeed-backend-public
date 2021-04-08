@@ -514,7 +514,8 @@ func newApp() *fiber.App {
 }
 
 func main() {
-	err := newApp().Listen(3000)
+	port := os.Getenv("PORT")
+	err := newApp().Listen(port)
 	if err != nil {
 		panic(err)
 	}
