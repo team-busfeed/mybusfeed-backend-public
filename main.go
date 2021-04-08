@@ -121,15 +121,6 @@ type BusStop struct{
 	} `json:"value"`
 }
 
-// type location_info struct {
-// 	BusstopNo string `json:"BusStopCode"`
-// 	RoadName string `json:"RoadName"`
-// 	Description string `json:"Description"`
-// 	Latitude string `json:"Latitude"`
-// 	Longitude string `json:"Longitude"`
-// }
-
-
 type DatamallBusesResponse struct {
 	Services []struct {
 		ServiceNo string `json:"serviceNo"`
@@ -392,22 +383,17 @@ func getBusStopInformation(c *fiber.Ctx){
 			latitude := data[2]
 			longitude := data[3]
 			if strings.Contains(busNumber, bustopNum){
-				fmt.Println("HELLO WORLDDDDDD")
 				outputJSON := map[string]string{"busstop_number": busNumber, "busstop_name": description, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
 				myarray = append(myarray, outputJSON)
 			}
 		}
 
 		if len(myarray) == 0 {
-			fmt.Println("HELLO")
 			for _, data := range allBusStop{
-				fmt.Println("WHY WHY WHY WHY")
 				description := data[1]
 				busNumber := data[0]
 				latitude := data[2]
 				longitude := data[3]
-				fmt.Println(description)
-				fmt.Println(bustopNum)
 				if strings.Contains(strings.ToLower(description), strings.ToLower(bustopNum)){
 					print("HERE HER HERE")
 					outputJSON := map[string]string{"busstop_number": busNumber, "busstop_name": description, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
