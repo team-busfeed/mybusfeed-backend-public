@@ -4,17 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
-	"time"
-	"strings"
-	"math"
+	"os"
 	"sort"
 	"strconv"
-	"os"
+	"strings"
+	"time"
 
-	"github.com/gofiber/fiber"
 	"github.com/gofiber/cors"
+	"github.com/gofiber/fiber"
 )
 
 type DatamallResponse struct {
@@ -103,22 +103,22 @@ type DatamallResponseBus struct {
 
 type BusStopResponse struct {
 	OdataMetadata string `json:"odata.metadata"`
-	Value []struct {
-		BusstopNo string `json:"BusStopCode"`
-		RoadName string `json:"RoadName"`
-		Description string `json:"Description"`
-		Latitude float64 `json:"Latitude"`
-		Longitude float64 `json:"Longitude"`
+	Value         []struct {
+		BusstopNo   string  `json:"BusStopCode"`
+		RoadName    string  `json:"RoadName"`
+		Description string  `json:"Description"`
+		Latitude    float64 `json:"Latitude"`
+		Longitude   float64 `json:"Longitude"`
 	} `json:"value"`
 }
 
-type BusStop struct{
+type BusStop struct {
 	Value []struct {
-		BusstopNo string `json:"BusStopCode"`
-		RoadName string `json:"RoadName"`
-		Description string `json:"Description"`
-		Latitude float64 `json:"Latitude"`
-		Longitude float64 `json:"Longitude"`
+		BusstopNo   string  `json:"BusStopCode"`
+		RoadName    string  `json:"RoadName"`
+		Description string  `json:"Description"`
+		Latitude    float64 `json:"Latitude"`
+		Longitude   float64 `json:"Longitude"`
 	} `json:"value"`
 }
 
@@ -196,9 +196,8 @@ func getBusesAPI(busStopNo string) (buses []string) {
 	return buses
 }
 
-func getListOfBusstopNo(c *fiber.Ctx){
+func getListOfBusstopNo(c *fiber.Ctx) {
 	c.Set("Content-type", "application/json; charset=utf-8")
-
 
 	latitude := c.Params("latitude")
 	longitude := c.Params("longitude")
@@ -209,8 +208,8 @@ func getListOfBusstopNo(c *fiber.Ctx){
 	client := &http.Client{}
 
 	// Parameters
-	for i := 0; i < 5000+1; i+=500 {
-		req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=" + fmt.Sprint(i), nil)
+	for i := 0; i < 5000+1; i += 500 {
+		req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip="+fmt.Sprint(i), nil)
 		if err != nil {
 			fmt.Print(err.Error())
 		}
@@ -235,13 +234,12 @@ func getListOfBusstopNo(c *fiber.Ctx){
 
 		json.Unmarshal(data, &result)
 
-
-		for _, busstop := range result.Value{
+		for _, busstop := range result.Value {
 			var temp []string
 			temp = append(temp, busstop.BusstopNo, busstop.Description, fmt.Sprint(busstop.Latitude), fmt.Sprint(busstop.Longitude))
 			allBusStop = append(allBusStop, temp)
 		}
-	
+
 	}
 
 	if len(allBusStop) == 0 {
@@ -251,9 +249,9 @@ func getListOfBusstopNo(c *fiber.Ctx){
 	} else {
 		var busInfo string
 		var myarray = []map[string]string{}
-		
-		for _, data := range allBusStop{
-			
+
+		for _, data := range allBusStop {
+
 			lat := data[2]
 			latstr := fmt.Sprint(lat)
 
@@ -263,7 +261,7 @@ func getListOfBusstopNo(c *fiber.Ctx){
 			description := data[1]
 
 			// Convert the latitude & longitude to a whole number to manipulate the first 3dp
-			// DB Location Data 
+			// DB Location Data
 			newArrayLat := strings.Split(latstr, ".")
 			dplat := newArrayLat[0] + newArrayLat[1][:3]
 			newArrayLong := strings.Split(longstr, ".")
@@ -277,7 +275,7 @@ func getListOfBusstopNo(c *fiber.Ctx){
 			lowerRangeLat := latData - 3
 			searchdplatupper := searchArrayLat[0] + fmt.Sprint(upperRangeLat)
 			searchdplatlower := searchArrayLat[0] + fmt.Sprint(lowerRangeLat)
-			
+
 			searchArraylong := strings.Split(longitude, ".")
 			currentLong := searchArraylong[1][:3]
 			longData, _ := strconv.Atoi(currentLong)
@@ -287,16 +285,15 @@ func getListOfBusstopNo(c *fiber.Ctx){
 			searchdplongupper := searchArraylong[0] + fmt.Sprint(upperRangeLong)
 			searchdplonglower := searchArraylong[0] + fmt.Sprint(lowerRangeLong)
 
-
-			if dplat >= searchdplatlower && dplat <= searchdplatupper && dplong >= searchdplonglower && dplong <= searchdplongupper{
+			if dplat >= searchdplatlower && dplat <= searchdplatupper && dplong >= searchdplonglower && dplong <= searchdplongupper {
 
 				// Calculate the euclidean distance
-				searchLat, _ := strconv.ParseFloat(dplat, 64);
-				searchLong, _ := strconv.ParseFloat(dplong, 64);
-				actualLat, _ := strconv.ParseFloat(searchArrayLat[0] + currentLat, 64);
-				actualLong, _ := strconv.ParseFloat(searchArraylong[0] + currentLong, 64);
+				searchLat, _ := strconv.ParseFloat(dplat, 64)
+				searchLong, _ := strconv.ParseFloat(dplong, 64)
+				actualLat, _ := strconv.ParseFloat(searchArrayLat[0]+currentLat, 64)
+				actualLong, _ := strconv.ParseFloat(searchArraylong[0]+currentLong, 64)
 
-				difference := int(math.Abs(math.Sqrt(math.Pow((searchLat - actualLat),2) + math.Pow((searchLong - actualLong),2))))
+				difference := int(math.Abs(math.Sqrt(math.Pow((searchLat-actualLat), 2) + math.Pow((searchLong-actualLong), 2))))
 				differenceNew := fmt.Sprint(difference)
 				result := data[0]
 				busStopNum := fmt.Sprint(result)
@@ -307,39 +304,40 @@ func getListOfBusstopNo(c *fiber.Ctx){
 				myarray = append(myarray, temp_map)
 
 				busInfo += busStopNum + ","
-			} 
+			}
 		}
 
 		// Sorting function to sort the distance based on asc order
-		sort.Slice(myarray, func(i, j int) bool { 
-			compare1,_ := strconv.Atoi(myarray[i]["compare"]) 
-			compare2,_ := strconv.Atoi(myarray[j]["compare"])
-			return compare1 < compare2})
+		sort.Slice(myarray, func(i, j int) bool {
+			compare1, _ := strconv.Atoi(myarray[i]["compare"])
+			compare2, _ := strconv.Atoi(myarray[j]["compare"])
+			return compare1 < compare2
+		})
 		fmt.Println(myarray)
-		
-		if busInfo == ""{
+
+		if busInfo == "" {
 			didNotFindResponse := map[string]string{"type": "success", "status": "not_found", "message": "No nearby bus stops."}
 			responseJSON, _ := json.Marshal(didNotFindResponse)
 			c.Status(200).Send(responseJSON)
 		} else {
-			json, _ :=json.Marshal(myarray)
+			json, _ := json.Marshal(myarray)
 			c.Status(200).Send(json)
 		}
 	}
 }
 
 // Get bus stop information based on busstop description or busstop number
-func getBusStopInformation(c *fiber.Ctx){
+func getBusStopInformation(c *fiber.Ctx) {
 	bustopNum := c.Params("busstopnum")
 
-	// Load dataset into a list 
+	// Load dataset into a list
 	var allBusStop [][]string
 
 	client := &http.Client{}
 
 	// Parameters
-	for i := 0; i < 5000+1; i+=500 {
-		req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=" + fmt.Sprint(i), nil)
+	for i := 0; i < 5000+1; i += 500 {
+		req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip="+fmt.Sprint(i), nil)
 		if err != nil {
 			fmt.Print(err.Error())
 		}
@@ -364,8 +362,7 @@ func getBusStopInformation(c *fiber.Ctx){
 
 		json.Unmarshal(data, &result)
 
-
-		for _, busstop := range result.Value{
+		for _, busstop := range result.Value {
 			var temp []string
 			temp = append(temp, busstop.BusstopNo, busstop.Description, fmt.Sprint(busstop.Latitude), fmt.Sprint(busstop.Longitude))
 			allBusStop = append(allBusStop, temp)
@@ -378,39 +375,39 @@ func getBusStopInformation(c *fiber.Ctx){
 		c.Status(404).Send(json)
 	} else {
 		var myarray []interface{}
-		for _, data := range allBusStop{
+		for _, data := range allBusStop {
 			description := data[1]
 			busNumber := data[0]
 			latitude := data[2]
 			longitude := data[3]
-			if strings.Contains(busNumber, bustopNum){
+			if strings.Contains(busNumber, bustopNum) {
 				outputJSON := map[string]string{"busstop_number": busNumber, "busstop_name": description, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
 				myarray = append(myarray, outputJSON)
 			}
 		}
 
 		if len(myarray) == 0 {
-			for _, data := range allBusStop{
+			for _, data := range allBusStop {
 				description := data[1]
 				busNumber := data[0]
 				latitude := data[2]
 				longitude := data[3]
-				if strings.Contains(strings.ToLower(description), strings.ToLower(bustopNum)){
+				if strings.Contains(strings.ToLower(description), strings.ToLower(bustopNum)) {
 					print("HERE HER HERE")
 					outputJSON := map[string]string{"busstop_number": busNumber, "busstop_name": description, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
 					myarray = append(myarray, outputJSON)
 				}
 			}
-		} 
+		}
 		if len(myarray) > 0 {
 			if len(myarray) > 10 {
-				json, _ :=json.Marshal(myarray[:10])
+				json, _ := json.Marshal(myarray[:10])
 				c.Status(200).Send(json)
 			} else {
-				json, _ :=json.Marshal(myarray)
+				json, _ := json.Marshal(myarray)
 				c.Status(200).Send(json)
 			}
-			
+
 		} else {
 			outputJSON := map[string]string{"type": "success", "status": "not_found", "message": "Incorrect busstop number or description"}
 			json, _ := json.Marshal(outputJSON)
@@ -420,38 +417,38 @@ func getBusStopInformation(c *fiber.Ctx){
 }
 
 // based on bus stop number return all the bus stop information with the lat and long
-func returnBusStopInformation(c *fiber.Ctx){
+func returnBusStopInformation(c *fiber.Ctx) {
 	c.Set("Content-type", "application/json; charset=utf-8")
-	
+
 	var BusStop map[string]interface{}
 
 	if err := c.BodyParser(&BusStop); err != nil {
 		c.Status(503).Send(err)
 	} else {
-		for _, t := range BusStop{
+		for _, t := range BusStop {
 			// Convert the output to json string an manipulate the data
 			s := fmt.Sprint(t)
-			data := s[1:len(s)-1]
+			data := s[1 : len(s)-1]
 			if data == "" {
 				didNotFindResponse := map[string]string{"type": "success", "status": "not_found", "message": "Incorrect busstop number or description"}
-				json, _ :=json.Marshal(didNotFindResponse)
+				json, _ := json.Marshal(didNotFindResponse)
 				c.Status(500).Send(json)
 			} else {
 				list_data := strings.Split(data, " ")
-				var allBusStop [][]string
+				var allBusStop []interface{}
 				// var location_info []location_info
 
 				client := &http.Client{}
 
 				// Parameters
-				for i := 0; i < 5000+1; i+=500 {
-					req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=" + fmt.Sprint(i), nil)
+				for i := 0; i < 5000+1; i += 500 {
+					req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip="+fmt.Sprint(i), nil)
 					if err != nil {
 						fmt.Print(err.Error())
 					}
 
 					// Headers
-				
+
 					req.Header.Add("Content-Type", "application/json")
 					req.Header.Add("AccountKey", "6FebnHNxTv+PGH/NDKkf/Q==")
 
@@ -471,16 +468,14 @@ func returnBusStopInformation(c *fiber.Ctx){
 
 					json.Unmarshal(data, &result)
 
-
-					for _, busstop := range result.Value{
-						var temp []string
-						temp = append(temp, busstop.BusstopNo, busstop.Description, fmt.Sprint(busstop.Latitude), fmt.Sprint(busstop.Longitude))
-						for _, busData := range list_data{
+					for _, busstop := range result.Value {
+						outputJSON := map[string]string{"busstop_number": busstop.BusstopNo, "busstop_name": busstop.Description, "busstop_lat": fmt.Sprint(busstop.Latitude), "busstop_lng": fmt.Sprint(busstop.Longitude)}
+						for _, busData := range list_data {
 							if len(busData) == 4 {
 								busData = "0" + busData
 							}
-							if (busstop.BusstopNo == busData) {
-								allBusStop = append(allBusStop, temp)
+							if busstop.BusstopNo == busData {
+								allBusStop = append(allBusStop, outputJSON)
 							}
 						}
 					}
@@ -488,14 +483,14 @@ func returnBusStopInformation(c *fiber.Ctx){
 
 				if len(allBusStop) == 0 {
 					didNotFindResponse := map[string]string{"type": "success", "status": "not_found", "message": "Incorrect busstop number or description"}
-					json, _ :=json.Marshal(didNotFindResponse)
+					json, _ := json.Marshal(didNotFindResponse)
 					c.Status(500).Send(json)
 				} else {
-					json, _ :=json.Marshal(allBusStop)
+					json, _ := json.Marshal(allBusStop)
 					c.Status(200).Send(json)
 				}
 			}
-		}	
+		}
 	}
 }
 
