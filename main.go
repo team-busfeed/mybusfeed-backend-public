@@ -392,6 +392,7 @@ func getBusStopInformation(c *fiber.Ctx) {
 				busNumber := data[0]
 				latitude := data[2]
 				longitude := data[3]
+				bustopNum = strings.Replace(bustopNum, "%20", " ", -1)
 				if strings.Contains(strings.ToLower(description), strings.ToLower(bustopNum)) {
 					print("HERE HER HERE")
 					outputJSON := map[string]string{"busstop_number": busNumber, "busstop_name": description, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
