@@ -453,7 +453,9 @@ func returnBusStopInformation(c *fiber.Ctx) {
 				for _, busData := range list_data {
 					fmt.Println(busData)
 					for _, busstop := range BusStops {
-						outputJSON := map[string]string{"busstop_number": fmt.Sprint(busstop["busstop_no"]), "busstop_name": fmt.Sprint(busstop["description"]), "busstop_lat": fmt.Sprint(busstop["latitude"]), "busstop_lng": fmt.Sprint(busstop["longitude"])}
+						descString := fmt.Sprint(busstop["description"])
+						descString = strings.Replace(descString, "%20", " ", -1)
+						outputJSON := map[string]string{"busstop_number": fmt.Sprint(busstop["busstop_no"]), "busstop_name": descString, "busstop_lat": fmt.Sprint(busstop["latitude"]), "busstop_lng": fmt.Sprint(busstop["longitude"])}
 						if (fmt.Sprint(busstop["busstop_no"]) == busData) {
 							allBusStop = append(allBusStop, outputJSON)
 						}
@@ -487,7 +489,7 @@ func setupRoutes(app *fiber.App) {
 //GetMongoDbConnection get connection of mongodb
 func GetMongoDbConnection() (*mongo.Client, error) {
 
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(""))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb+srv://BusFeedUser:SMUbusfeed!08@busfeed.jsui8.mongodb.net/test"))
 
 	if err != nil {
 		log.Fatal(err)
