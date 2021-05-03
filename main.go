@@ -489,7 +489,7 @@ func setupRoutes(app *fiber.App) {
 //GetMongoDbConnection get connection of mongodb
 func GetMongoDbConnection() (*mongo.Client, error) {
 
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb+srv://BusFeedUser:SMUbusfeed!08@busfeed.jsui8.mongodb.net/test"))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(""))
 
 	if err != nil {
 		log.Fatal(err)
