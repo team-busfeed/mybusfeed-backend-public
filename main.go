@@ -234,7 +234,7 @@ func getListOfBusstopNo(c *fiber.Ctx) {
 		c.Status(500).Send(err)
 		return
 	}
-	
+
 	defer cur.Close(context.Background())
 
 	cur.All(context.Background(), &BusStops)
@@ -328,72 +328,63 @@ func getListOfBusstopNo(c *fiber.Ctx) {
 func getBusStopInformation(c *fiber.Ctx) {
 	bustopNum := c.Params("busstopnum")
 
-	// Load dataset into a list
-	var allBusStop [][]string
+	const dbName = "BusFeedHardware"
+	const collectionName = "BusStopLocation"
 
-	client := &http.Client{}
-
-	// Parameters
-	for i := 0; i < 5000+1; i += 500 {
-		req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip="+fmt.Sprint(i), nil)
-		if err != nil {
-			fmt.Print(err.Error())
-		}
-
-		// Headers
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("AccountKey", "6FebnHNxTv+PGH/NDKkf/Q==")
-
-		resp, err := client.Do(req)
-
-		if err != nil {
-			fmt.Print(err.Error())
-		}
-		defer resp.Body.Close()
-
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Print(err.Error())
-		}
-
-		var result BusStopResponse
-
-		json.Unmarshal(data, &result)
-
-		for _, busstop := range result.Value {
-			var temp []string
-			temp = append(temp, busstop.BusstopNo, busstop.Description, fmt.Sprint(busstop.Latitude), fmt.Sprint(busstop.Longitude))
-			allBusStop = append(allBusStop, temp)
-		}
+	collection, err := getMongoDbCollection(dbName, collectionName)
+	if err != nil {
+		c.Status(500).Send(err)
+		return
 	}
 
-	if len(allBusStop) == 0 {
+	var filter bson.M = bson.M{}
+
+	var BusStops []bson.M
+
+	cur, err := collection.Find(context.Background(), filter)
+
+	if err != nil {
+		c.Status(500).Send(err)
+		return
+	}
+
+	defer cur.Close(context.Background())
+
+	cur.All(context.Background(), &BusStops)
+
+
+
+	if len(BusStops) == 0 {
 		outputJSON := map[string]string{"type": "success", "status": "not_found", "message": "Incorrect busstop number or description"}
 		json, _ := json.Marshal(outputJSON)
 		c.Status(404).Send(json)
 	} else {
 		var myarray []interface{}
-		for _, data := range allBusStop {
-			description := data[1]
-			busNumber := data[0]
-			latitude := data[2]
-			longitude := data[3]
-			if strings.Contains(busNumber, bustopNum) {
-				outputJSON := map[string]string{"busstop_number": busNumber, "busstop_name": description, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
+		for _, data := range BusStops {
+			description := data["description"]
+			descriptionString := fmt.Sprint(description)
+			busNumber := data["busstop_no"]
+			busNumberString := fmt.Sprint(busNumber)
+			latitude := data["latitude"]
+			longitude := data["longitude"]
+			if strings.Contains(busNumberString, bustopNum) {
+				outputJSON := map[string]string{"busstop_number": busNumberString, "busstop_name": descriptionString, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
 				myarray = append(myarray, outputJSON)
 			}
 		}
 
 		if len(myarray) == 0 {
-			for _, data := range allBusStop {
-				description := data[1]
-				busNumber := data[0]
-				latitude := data[2]
-				longitude := data[3]
+			for _, data := range BusStops {
+				description := data["description"]
+				descString := fmt.Sprint(description)
+				busNumber := data["busstop_no"]
+				busNumString := fmt.Sprint(busNumber)
+				latitude := data["latitude"]
+				longitude := data["longitude"]
 				bustopNum = strings.Replace(bustopNum, "%20", " ", -1)
-				if strings.Contains(strings.ToLower(description), strings.ToLower(bustopNum)) {
-					print("HERE HER HERE")
-					outputJSON := map[string]string{"busstop_number": busNumber, "busstop_name": description, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
+				descString = strings.Replace(descString, "%20", " ", -1)
+				if strings.Contains(strings.ToLower(descString), strings.ToLower(bustopNum)) {
+					outputJSON := map[string]string{"busstop_number": busNumString, "busstop_name": descString, "busstop_lat": fmt.Sprint(latitude), "busstop_lng": fmt.Sprint(longitude)}
 					myarray = append(myarray, outputJSON)
 				}
 			}
@@ -424,6 +415,7 @@ func returnBusStopInformation(c *fiber.Ctx) {
 	if err := c.BodyParser(&BusStop); err != nil {
 		c.Status(503).Send(err)
 	} else {
+		var allBusStop []interface{}
 		for _, t := range BusStop {
 			// Convert the output to json string an manipulate the data
 			s := fmt.Sprint(t)
@@ -434,52 +426,40 @@ func returnBusStopInformation(c *fiber.Ctx) {
 				c.Status(500).Send(json)
 			} else {
 				list_data := strings.Split(data, " ")
-				var allBusStop []interface{}
 				// var location_info []location_info
-
-				client := &http.Client{}
-
-				// Parameters
-				for i := 0; i < 5000+1; i += 500 {
-					req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip="+fmt.Sprint(i), nil)
-					if err != nil {
-						fmt.Print(err.Error())
-					}
-
-					// Headers
-
-					req.Header.Add("Content-Type", "application/json")
-					req.Header.Add("AccountKey", "6FebnHNxTv+PGH/NDKkf/Q==")
-
-					resp, err := client.Do(req)
-
-					if err != nil {
-						fmt.Print(err.Error())
-					}
-					defer resp.Body.Close()
-
-					data, err := ioutil.ReadAll(resp.Body)
-					if err != nil {
-						fmt.Print(err.Error())
-					}
-
-					var result BusStopResponse
-
-					json.Unmarshal(data, &result)
-
-					for _, busstop := range result.Value {
-						outputJSON := map[string]string{"busstop_number": busstop.BusstopNo, "busstop_name": busstop.Description, "busstop_lat": fmt.Sprint(busstop.Latitude), "busstop_lng": fmt.Sprint(busstop.Longitude)}
-						for _, busData := range list_data {
-							if len(busData) == 4 {
-								busData = "0" + busData
-							}
-							if busstop.BusstopNo == busData {
-								allBusStop = append(allBusStop, outputJSON)
-							}
+				const dbName = "BusFeedHardware"
+				const collectionName = "BusStopLocation"
+			
+				collection, err := getMongoDbCollection(dbName, collectionName)
+				if err != nil {
+					c.Status(500).Send(err)
+					return
+				}
+			
+				var filter bson.M = bson.M{}
+			
+				var BusStops []bson.M
+			
+				cur, err := collection.Find(context.Background(), filter)
+			
+				if err != nil {
+					c.Status(500).Send(err)
+					return
+				}
+			
+				defer cur.Close(context.Background())
+			
+				cur.All(context.Background(), &BusStops)
+				for _, busData := range list_data {
+					fmt.Println(busData)
+					for _, busstop := range BusStops {
+						outputJSON := map[string]string{"busstop_number": fmt.Sprint(busstop["busstop_no"]), "busstop_name": fmt.Sprint(busstop["description"]), "busstop_lat": fmt.Sprint(busstop["latitude"]), "busstop_lng": fmt.Sprint(busstop["longitude"])}
+						if (fmt.Sprint(busstop["busstop_no"]) == busData) {
+							allBusStop = append(allBusStop, outputJSON)
 						}
 					}
 				}
-
+			
 				if len(allBusStop) == 0 {
 					didNotFindResponse := map[string]string{"type": "success", "status": "not_found", "message": "Incorrect busstop number or description"}
 					json, _ := json.Marshal(didNotFindResponse)
