@@ -10,5 +10,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/steinfletcher/apitest v1.5.0
 	github.com/steinfletcher/apitest-jsonpath v1.6.0
+	go.mongodb.org/mongo-driver v1.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	labix.org/v2/mgo v0.0.0-20140701140051-000000000287
 )

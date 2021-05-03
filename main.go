@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +15,15 @@ import (
 
 	"github.com/gofiber/cors"
 	"github.com/gofiber/fiber"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	
+	"go.mongodb.org/mongo-driver/bson"
+	
+	"context"
+	"log"
 )
 
 type DatamallResponse struct {
@@ -199,50 +208,38 @@ func getBusesAPI(busStopNo string) (buses []string) {
 func getListOfBusstopNo(c *fiber.Ctx) {
 	c.Set("Content-type", "application/json; charset=utf-8")
 
+	const dbName = "BusFeedHardware"
+	const collectionName = "BusStopLocation"
+
+	collection, err := getMongoDbCollection(dbName, collectionName)
+	if err != nil {
+		c.Status(500).Send(err)
+		return
+	}
+
+
 	latitude := c.Params("latitude")
 	longitude := c.Params("longitude")
 
-	var allBusStop [][]string
 	// var location_info []location_info
 
-	client := &http.Client{}
+	// client := &http.Client{}
+	var filter bson.M = bson.M{}
 
-	// Parameters
-	for i := 0; i < 5000+1; i += 500 {
-		req, err := http.NewRequest("GET", "http://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip="+fmt.Sprint(i), nil)
-		if err != nil {
-			fmt.Print(err.Error())
-		}
+	var BusStops []bson.M
 
-		// Headers
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("AccountKey", "6FebnHNxTv+PGH/NDKkf/Q==")
+	cur, err := collection.Find(context.Background(), filter)
 
-		resp, err := client.Do(req)
-
-		if err != nil {
-			fmt.Print(err.Error())
-		}
-		defer resp.Body.Close()
-
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Print(err.Error())
-		}
-
-		var result BusStopResponse
-
-		json.Unmarshal(data, &result)
-
-		for _, busstop := range result.Value {
-			var temp []string
-			temp = append(temp, busstop.BusstopNo, busstop.Description, fmt.Sprint(busstop.Latitude), fmt.Sprint(busstop.Longitude))
-			allBusStop = append(allBusStop, temp)
-		}
-
+	if err != nil {
+		c.Status(500).Send(err)
+		return
 	}
+	
+	defer cur.Close(context.Background())
 
-	if len(allBusStop) == 0 {
+	cur.All(context.Background(), &BusStops)
+	
+	if len(BusStops) == 0 {
 		outputJSON := map[string]string{"Message": "Fail to retrieve bus stop information"}
 		json, _ := json.Marshal(outputJSON)
 		c.Status(500).Send(json)
@@ -250,15 +247,16 @@ func getListOfBusstopNo(c *fiber.Ctx) {
 		var busInfo string
 		var myarray = []map[string]string{}
 
-		for _, data := range allBusStop {
+		for _, data := range BusStops {
 
-			lat := data[2]
+
+			lat := data["latitude"]
 			latstr := fmt.Sprint(lat)
 
-			long := data[3]
+			long := data["longitude"]
 			longstr := fmt.Sprint(long)
 
-			description := data[1]
+			description := data["description"]
 
 			// Convert the latitude & longitude to a whole number to manipulate the first 3dp
 			// DB Location Data
@@ -295,7 +293,7 @@ func getListOfBusstopNo(c *fiber.Ctx) {
 
 				difference := int(math.Abs(math.Sqrt(math.Pow((searchLat-actualLat), 2) + math.Pow((searchLong-actualLong), 2))))
 				differenceNew := fmt.Sprint(difference)
-				result := data[0]
+				result := data["busstop_no"]
 				busStopNum := fmt.Sprint(result)
 				desc := fmt.Sprint(description)
 				desc = strings.ReplaceAll(desc, "%20", " ")
@@ -495,12 +493,44 @@ func returnBusStopInformation(c *fiber.Ctx) {
 	}
 }
 
+
+
+
 func setupRoutes(app *fiber.App) {
 	app.Get("/demand/healthcheck", healthcheck)
 	app.Get("/demand/bus-stop/:busStopNo", getBusesRoute)
 	app.Get("/location/getListOfBusStop/:latitude-:longitude", getListOfBusstopNo)
 	app.Get("/location/getBusStopInformation/:busstopnum", getBusStopInformation)
 	app.Post("/location/returnBusStopInformation", returnBusStopInformation)
+}
+
+//GetMongoDbConnection get connection of mongodb
+func GetMongoDbConnection() (*mongo.Client, error) {
+
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb+srv://BusFeedUser:SMUbusfeed!08@busfeed.jsui8.mongodb.net/test"))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = client.Ping(context.Background(), readpref.Primary())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return client, nil
+}
+
+func getMongoDbCollection(DbName string, CollectionName string) (*mongo.Collection, error) {
+	client, err := GetMongoDbConnection()
+
+	if err != nil {
+		return nil, err
+	}
+
+	collection := client.Database(DbName).Collection(CollectionName)
+
+	return collection, nil
 }
 
 func newApp() *fiber.App {
